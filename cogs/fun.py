@@ -17,6 +17,41 @@ EIGHT_BALL_RESPONSES = [
     "Don't count on it.", "My reply is no.", "Outlook not so good.",
 ]
 
+WOULD_YOU_RATHER = [
+    "be able to fly or be invisible?",
+    "have unlimited tacos for life or unlimited pizza for life?",
+    "always be 10 minutes late or always be 20 minutes early?",
+    "know when you'll die or how you'll die?",
+    "lose your sense of smell or your sense of taste?",
+    "live without music or live without movies?",
+    "be famous but poor or unknown but rich?",
+    "fight one horse-sized duck or 100 duck-sized horses?",
+]
+
+TRUTHS = [
+    "What's the most embarrassing thing you've done in front of a crowd?",
+    "What's a secret talent nobody knows about?",
+    "What's the worst gift you've ever received?",
+    "What's something you pretend to understand but don't?",
+    "What's the weirdest dream you remember?",
+]
+
+DARES = [
+    "Type your next message using only emojis.",
+    "Send a voice message singing the chorus of any song.",
+    "Let the channel pick your profile picture for the next hour.",
+    "Text the last person you messaged 'I know what you did.'",
+    "Speak in rhymes for your next 3 messages.",
+]
+
+QUOTES = [
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
+    "Done is better than perfect.",
+    "Small steps every day add up to big change.",
+    "You don't have to see the whole staircase, just take the first step.",
+    "Discipline is choosing between what you want now and what you want most.",
+]
+
 
 class Fun(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -59,6 +94,36 @@ class Fun(commands.Cog):
         embed = discord.Embed(title=f"{member.display_name}'s avatar")
         embed.set_image(url=member.display_avatar.url)
         await ctx.send(embed=embed)
+
+    @commands.hybrid_command(name="wouldyourather", description="Get a random would-you-rather prompt.")
+    async def wouldyourather(self, ctx: commands.Context):
+        await ctx.send(f"🤔 Would you rather {random.choice(WOULD_YOU_RATHER)}")
+
+    @commands.hybrid_command(name="truth", description="Get a random truth prompt.")
+    async def truth(self, ctx: commands.Context):
+        await ctx.send(f"💬 Truth: {random.choice(TRUTHS)}")
+
+    @commands.hybrid_command(name="dare", description="Get a random dare prompt.")
+    async def dare(self, ctx: commands.Context):
+        await ctx.send(f"🔥 Dare: {random.choice(DARES)}")
+
+    @commands.hybrid_command(name="quote", description="Get a random motivational quote.")
+    async def quote(self, ctx: commands.Context):
+        await ctx.send(f"📜 *{random.choice(QUOTES)}*")
+
+    @commands.hybrid_command(name="reverse", description="Reverse some text.")
+    @app_commands.describe(text="The text to reverse")
+    async def reverse(self, ctx: commands.Context, *, text: str):
+        await ctx.send(text[::-1])
+
+    @commands.hybrid_command(name="choose", description="Let Mahoraga pick between options for you.")
+    @app_commands.describe(options="Separate options with commas, e.g. pizza, tacos, sushi")
+    async def choose(self, ctx: commands.Context, *, options: str):
+        choices = [o.strip() for o in options.split(",") if o.strip()]
+        if len(choices) < 2:
+            await ctx.send("Give me at least two options, separated by commas.")
+            return
+        await ctx.send(f"🎯 I choose: **{random.choice(choices)}**")
 
 
 async def setup(bot: commands.Bot):

@@ -112,14 +112,18 @@ class Gambling(commands.Cog):
 
     @commands.hybrid_command(name="mines", description="Play Mines! Bet points and avoid the bombs.")
     @app_commands.describe(bet="How many points to bet", bombs="Number of bombs (1-15, default 3)")
+    @commands.cooldown(1, 3600, commands.BucketType.user)
     async def mines(self, ctx: commands.Context, bet: int, bombs: int = 3):
         if bet <= 0:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("Bet must be a positive number.")
             return
         if storage.get_balance(ctx.author.id) < bet:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You don't have enough points for that bet.")
             return
         if not (1 <= bombs <= TOTAL_TILES - 1):
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(f"Bombs must be between 1 and {TOTAL_TILES - 1}.")
             return
         storage.add_balance(ctx.author.id, -bet)
@@ -131,11 +135,14 @@ class Gambling(commands.Cog):
 
     @commands.hybrid_command(name="slots", description="Spin the slots and try your luck.")
     @app_commands.describe(bet="How many points to bet")
+    @commands.cooldown(1, 1800, commands.BucketType.user)
     async def slots(self, ctx: commands.Context, bet: int):
         if bet <= 0:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("Bet must be a positive number.")
             return
         if storage.get_balance(ctx.author.id) < bet:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You don't have enough points for that bet.")
             return
         symbols = ["🍒", "🍋", "🍇", "⭐", "💎", "7️⃣"]

@@ -169,11 +169,14 @@ class Games(commands.Cog):
 
     @commands.hybrid_command(name="rps", description="Play rock-paper-scissors against Mahoraga.")
     @app_commands.describe(bet="Points to bet, optional (default 0)")
+    @commands.cooldown(1, 3600, commands.BucketType.user)
     async def rps(self, ctx: commands.Context, bet: int = 0):
         if bet < 0:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("Bet can't be negative.")
             return
         if bet > 0 and storage.get_balance(ctx.author.id) < bet:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You don't have enough points for that bet.")
             return
         view = RPSView(ctx.author, bet)
@@ -181,20 +184,26 @@ class Games(commands.Cog):
 
     @commands.hybrid_command(name="duel", description="Challenge another member to a points duel.")
     @app_commands.describe(opponent="Who to challenge", bet="Points on the line")
+    @commands.cooldown(1, 3600, commands.BucketType.user)
     async def duel(self, ctx: commands.Context, opponent: discord.Member, bet: int):
         if bet <= 0:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("Bet must be a positive number.")
             return
         if opponent.id == ctx.author.id:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You can't duel yourself.")
             return
         if opponent.bot:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You can't duel a bot.")
             return
         if storage.get_balance(ctx.author.id) < bet:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send("You don't have enough points for that bet.")
             return
         if storage.get_balance(opponent.id) < bet:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(f"{opponent.display_name} doesn't have enough points to accept that bet.")
             return
         view = DuelView(ctx.author, opponent, bet)
@@ -204,6 +213,7 @@ class Games(commands.Cog):
         )
 
     @commands.hybrid_command(name="trivia", description="Answer a trivia question for bonus points.")
+    @commands.cooldown(1, 5400, commands.BucketType.user)
     async def trivia(self, ctx: commands.Context):
         question = random.choice(TRIVIA_QUESTIONS)
         view = TriviaView(ctx.author, question, TRIVIA_REWARD)

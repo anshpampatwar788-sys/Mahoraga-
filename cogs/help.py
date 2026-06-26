@@ -13,17 +13,58 @@ class Help(commands.Cog):
             description="Adapting to whatever you need. Works with `!command` or `/command`.",
             color=discord.Color.dark_purple(),
         )
-        embed.add_field(name="🎉 Fun", value="`ping` `8ball` `coinflip` `roll` `joke` `avatar`", inline=False)
+        embed.add_field(
+            name="🎉 Fun",
+            value=(
+                "`ping` `8ball` `coinflip` `roll` `joke` `avatar`\n"
+                "`wouldyourather` `truth` `dare` `quote` `reverse` `choose`"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="🛠️ Utility",
+            value="`serverinfo` `userinfo` `rank` `remindme`",
+            inline=False,
+        )
         embed.add_field(name="💰 Economy", value="`balance` `daily` `leaderboard` `pay`", inline=False)
-        embed.add_field(name="🎲 Gambling & Games", value="`mines` `slots` `rps` `duel` `trivia`", inline=False)
+        embed.add_field(
+            name="🎲 Gambling & Games",
+            value=(
+                "`mines` `slots` `rps` `duel` *(1hr cooldown each)*\n"
+                "`trivia` *(1.5hr cooldown)*"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="🎵 Radio",
+            value="`play` `skip` `pause` `resume` `stop` `leave` `queue` `nowplaying` `volume`",
+            inline=False,
+        )
         embed.add_field(name="🎂 Birthdays", value="`setbirthday` `birthday` `upcomingbirthdays`", inline=False)
         embed.add_field(name="💡 Suggestions", value="`suggest`", inline=False)
         embed.add_field(name="📊 Polls", value="`poll` — host a vote with up to 5 options", inline=False)
-        embed.add_field(name="🔎 Search", value="`question` — ask Mahoraga to search the web for you", inline=False)
-        embed.add_field(name="🎁 Drops", value="`drop` *(Mod/Admin only)*", inline=False)
+        embed.add_field(
+            name="🔎 Search",
+            value="`question` — ask Mahoraga to search the web for you *(1min cooldown)*",
+            inline=False,
+        )
+        embed.add_field(
+            name="🎁 Drops",
+            value="`drop` *(Mod/Admin only)* — winner gets the prize sent straight to their DMs",
+            inline=False,
+        )
         embed.add_field(
             name="🛠️ Moderation *(Mod/Admin only)*",
-            value="`kick` `ban` `timeout` `untimeout` `clear` `slowmode` `warn` `grant` `setbirthdaychannel` `setsuggestionchannel`",
+            value=(
+                "`kick` `ban` `unban` `timeout` `untimeout` `clear` `purgeuser`\n"
+                "`slowmode` `lock` `unlock` `nickname` `warn` `announce` `grant`\n"
+                "`setbirthdaychannel` `setsuggestionchannel`"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="👑 Owner only",
+            value="`resetpoints` `resetallpoints`",
             inline=False,
         )
         embed.set_footer(text="Moderators can't act on members with an equal or higher role than them.")

@@ -103,6 +103,83 @@ class Moderation(commands.Cog):
         except discord.Forbidden:
             pass
 
+    @commands.hybrid_command(name="unban", description="Unban a user by their ID.")
+    @app_commands.describe(user_id="The numeric Discord ID of the user to unban", reason="Why")
+    @is_staff()
+    @commands.bot_has_permissions(ban_members=True)
+    async def unban(self, ctx: commands.Context, user_id: str, reason: str = "No reason provided."):
+        try:
+            uid = int(user_id)
+        except ValueError:
+            await ctx.send("That doesn't look like a valid user ID.")
+            return
+        try:
+            user = await self.bot.fetch_user(uid)
+            await ctx.guild.unban(user, reason=reason)
+        except discord.NotFound:
+            await ctx.send("That user isn't banned, or the ID is wrong.")
+            return
+        await ctx.send(f"✅ Unbanned **{user}**.")
+
+    @commands.hybrid_command(name="nickname", description="Change a member's nickname.")
+    @app_commands.describe(member="Who to rename", new_nick="New nickname (leave blank to reset)")
+    @is_staff()
+    @commands.bot_has_permissions(manage_nicknames=True)
+    async def nickname(self, ctx: commands.Context, member: discord.Member, new_nick: str = None):
+        error = check_hierarchy(ctx.author, member)
+        if error:
+            await ctx.send(f"🚫 {error}")
+            return
+        old_nick = member.display_name
+        await member.edit(nick=new_nick)
+        if new_nick:
+            await ctx.send(f"✏️ Renamed **{old_nick}** to **{new_nick}**.")
+        else:
+            await ctx.send(f"✏️ Reset **{old_nick}**'s nickname.")
+
+    @commands.hybrid_command(name="lock", description="Stop @everyone from sending messages in this channel.")
+    @is_staff()
+    @commands.bot_has_permissions(manage_channels=True)
+    async def lock(self, ctx: commands.Context):
+        overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+        overwrite.send_messages = False
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+        await ctx.send("🔒 Channel locked.")
+
+    @commands.hybrid_command(name="unlock", description="Allow @everyone to send messages in this channel again.")
+    @is_staff()
+    @commands.bot_has_permissions(manage_channels=True)
+    async def unlock(self, ctx: commands.Context):
+        overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+        overwrite.send_messages = None
+        await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+        await ctx.send("🔓 Channel unlocked.")
+
+    @commands.hybrid_command(name="purgeuser", description="Delete a member's recent messages in this channel.")
+    @app_commands.describe(member="Whose messages to delete", amount="How many recent channel messages to scan (1-200)")
+    @is_staff()
+    @commands.bot_has_permissions(manage_messages=True)
+    async def purgeuser(self, ctx: commands.Context, member: discord.Member, amount: int = 50):
+        if not (1 <= amount <= 200):
+            await ctx.send("Amount must be between 1 and 200.")
+            return
+        deleted = await ctx.channel.purge(limit=amount, check=lambda m: m.author.id == member.id)
+        await ctx.send(f"🧹 Deleted {len(deleted)} message(s) from **{member.display_name}**.", delete_after=5)
+
+    @commands.hybrid_command(name="announce", description="Post an announcement embed to a channel.")
+    @app_commands.describe(channel="Where to post it", message="The announcement text")
+    @is_staff()
+    @commands.bot_has_permissions(embed_links=True)
+    async def announce(self, ctx: commands.Context, channel: discord.TextChannel, *, message: str):
+        embed = discord.Embed(title="📢 Announcement", description=message, color=discord.Color.gold())
+        embed.set_footer(text=f"Posted by {ctx.author.display_name}")
+        try:
+            await channel.send(embed=embed)
+        except discord.Forbidden:
+            await ctx.send(f"I don't have permission to post in {channel.mention}.")
+            return
+        await ctx.send(f"✅ Announcement posted in {channel.mention}.")
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Moderation(bot))

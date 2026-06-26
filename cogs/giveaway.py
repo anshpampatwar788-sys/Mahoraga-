@@ -30,7 +30,16 @@ class ClaimView(discord.ui.View):
         button.label = f"Claimed by {interaction.user.display_name}"
 
         await interaction.response.edit_message(view=self)
-        await interaction.followup.send(f"🎉 Here's your prize:\n{self.prize_info}", ephemeral=True)
+
+        try:
+            await interaction.user.send(f"🎉 You claimed a drop! Here's your prize:\n{self.prize_info}")
+            await interaction.followup.send("🎉 You won! Check your DMs for the details.", ephemeral=True)
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "🎉 You won, but I couldn't DM you (your DMs may be closed to server members). "
+                "Please open your DMs and contact a staff member to get your prize.",
+                ephemeral=True,
+            )
 
 
 class Giveaway(commands.Cog):
@@ -55,7 +64,7 @@ class Giveaway(commands.Cog):
     ):
         embed = discord.Embed(
             title=f"🎁 {title}",
-            description=description or "First to click **Claim** gets it!",
+            description=description or "First to click **Claim** gets it — sent straight to your DMs!",
             color=discord.Color.purple(),
         )
         if required_role:

@@ -12,10 +12,14 @@ class Suggestions(commands.Cog):
 
     @commands.hybrid_command(name="suggest", description="Submit a suggestion for the server.")
     @app_commands.describe(suggestion="What's your idea?")
-    @commands.bot_has_permissions(send_messages=True, add_reactions=True, embed_links=True)
     async def suggest(self, ctx: commands.Context, *, suggestion: str):
+        # Respond to the interaction immediately so it never times out while we
+        # do the actual posting/reacting work below.
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+
         channel_id = storage.get_config("suggestion_channel_id")
-        channel = self.bot.get_channel(channel_id) if channel_id else ctx.channel
+        channel = self.bot.get_channel(channel_id) if channel_id else None
         if channel is None:
             channel = ctx.channel
 
@@ -24,9 +28,19 @@ class Suggestions(commands.Cog):
         if ctx.author.display_avatar:
             embed.set_thumbnail(url=ctx.author.display_avatar.url)
 
-        msg = await channel.send(embed=embed)
-        await msg.add_reaction("👍")
-        await msg.add_reaction("👎")
+        try:
+            msg = await channel.send(embed=embed)
+            await msg.add_reaction("👍")
+            await msg.add_reaction("👎")
+        except discord.Forbidden:
+            await ctx.send(
+                f"I don't have permission to post or react in {channel.mention}. "
+                "Ask an admin to check my permissions there (Send Messages, Embed Links, Add Reactions)."
+            )
+            return
+        except discord.HTTPException:
+            await ctx.send("Something went wrong posting that suggestion — try again in a moment.")
+            return
 
         await ctx.send(f"✅ Suggestion submitted in {channel.mention}!")
 
