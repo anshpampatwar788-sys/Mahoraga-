@@ -30,6 +30,17 @@ async def on_command_error(ctx, error):
         await ctx.send("You don't have permission to use that command.")
     elif isinstance(error, commands.BotMissingPermissions):
         await ctx.send("I don't have the permissions needed to do that.")
+    elif isinstance(error, commands.CommandOnCooldown):
+        minutes, seconds = divmod(int(error.retry_after), 60)
+        hours, minutes = divmod(minutes, 60)
+        parts = []
+        if hours:
+            parts.append(f"{hours}h")
+        if minutes:
+            parts.append(f"{minutes}m")
+        if seconds or not parts:
+            parts.append(f"{seconds}s")
+        await ctx.send(f"⏳ That's on cooldown — try again in {' '.join(parts)}.")
     elif isinstance(error, commands.CheckFailure):
         await ctx.send(str(error) or "You can't use that command.")
     elif isinstance(error, commands.CommandNotFound):
