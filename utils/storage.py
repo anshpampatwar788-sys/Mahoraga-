@@ -60,6 +60,13 @@ def get_leaderboard(limit: int = 10):
     return entries[:limit]
 
 
+def reset_all_balances():
+    data = _load(DATA_PATH)
+    for uid in data:
+        data[uid]["balance"] = 0
+    _save(DATA_PATH, data)
+
+
 # --- Birthdays ---
 
 def set_birthday(user_id: int, month: int, day: int):

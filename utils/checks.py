@@ -27,6 +27,19 @@ def is_staff():
     return commands.check(predicate)
 
 
+def is_guild_owner():
+    """Allows the command only for the server's owner — not admins, not staff, just the owner."""
+
+    async def predicate(ctx: commands.Context) -> bool:
+        if ctx.guild is None:
+            raise commands.CheckFailure("This command can only be used in a server.")
+        if ctx.author.id != ctx.guild.owner_id:
+            raise commands.CheckFailure("Only the server owner can use this command.")
+        return True
+
+    return commands.check(predicate)
+
+
 def check_hierarchy(moderator: discord.Member, target: discord.Member):
     """Returns an error string if `moderator` should NOT be allowed to act on
     `target` (kick/ban/timeout/warn), or None if the action is allowed."""
