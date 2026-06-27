@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -67,16 +68,29 @@ class Radio(commands.Cog):
             return
         track = state.queue.popleft()
         state.current = track
-        source = discord.FFmpegPCMAudio(track.stream_url, **FFMPEG_OPTS)
-        source = discord.PCMVolumeTransformer(source, volume=state.volume)
+
+        try:
+            source = discord.FFmpegPCMAudio(track.stream_url, **FFMPEG_OPTS)
+            source = discord.PCMVolumeTransformer(source, volume=state.volume)
+            print("[radio][diag] FFmpegPCMAudio source created successfully")
+        except Exception as e:
+            print(f"[radio][diag] FFmpegPCMAudio creation FAILED: {e}")
+            traceback.print_exc()
+            raise
 
         def after_play(error):
             if error:
-                print(f"[radio] playback error: {error}")
+                print(f"[radio][diag] playback after_play error: {error}")
             asyncio.run_coroutine_threadsafe(self._play_next(guild), self.bot.loop)
 
         if state.voice_client and state.voice_client.is_connected():
-            state.voice_client.play(source, after=after_play)
+            try:
+                state.voice_client.play(source, after=after_play)
+                print("[radio][diag] voice_client.play() called successfully")
+            except Exception as e:
+                print(f"[radio][diag] voice_client.play() FAILED: {e}")
+                traceback.print_exc()
+                raise
 
     @commands.hybrid_command(name="play", description="Play a song in your voice channel.")
     @app_commands.describe(query="Song name, or a YouTube/SoundCloud link")
@@ -92,21 +106,36 @@ class Radio(commands.Cog):
         if ctx.interaction:
             await ctx.defer()
 
+        # --- DIAGNOSTIC: is the opus codec library loaded? ---
+        opus_loaded = discord.opus.is_loaded()
+        print(f"[radio][diag] discord.opus.is_loaded() = {opus_loaded}")
+        if not opus_loaded:
+            await ctx.send(
+                "⚠️ Diagnostic: the Opus audio codec isn't loaded on this server. "
+                "This is almost certainly why playback fails — `libopus` is missing from the host."
+            )
+            return
+
         state = self.get_state(ctx.guild.id)
         voice_channel = ctx.author.voice.channel
 
         if state.voice_client is None or not state.voice_client.is_connected():
             try:
                 state.voice_client = await voice_channel.connect()
-            except discord.ClientException:
-                await ctx.send("Couldn't connect to your voice channel.")
+                print("[radio][diag] voice_channel.connect() succeeded")
+            except Exception as e:
+                print(f"[radio][diag] voice_channel.connect() FAILED: {e}")
+                traceback.print_exc()
+                await ctx.send(f"⚠️ Diagnostic: couldn't connect to voice — `{type(e).__name__}: {e}`")
                 return
 
         try:
             info = await self._extract(query)
+            print(f"[radio][diag] yt-dlp extraction succeeded: title={info.get('title')!r}")
         except Exception as e:
-            print(f"[radio] extract failed: {e}")
-            await ctx.send("Couldn't find or load that track. Try a different search term or link.")
+            print(f"[radio][diag] yt-dlp extraction FAILED: {e}")
+            traceback.print_exc()
+            await ctx.send(f"⚠️ Diagnostic: yt-dlp extraction failed — `{type(e).__name__}: {e}`")
             return
 
         track = Track(
@@ -119,7 +148,12 @@ class Radio(commands.Cog):
         await ctx.send(f"➕ Queued **{track.title}**")
 
         if not state.voice_client.is_playing() and not state.voice_client.is_paused():
-            await self._play_next(ctx.guild)
+            try:
+                await self._play_next(ctx.guild)
+            except Exception as e:
+                print(f"[radio][diag] _play_next FAILED: {e}")
+                traceback.print_exc()
+                await ctx.send(f"⚠️ Diagnostic: playback failed — `{type(e).__name__}: {e}`")
 
     @commands.hybrid_command(name="skip", description="Skip the current song.")
     async def skip(self, ctx: commands.Context):

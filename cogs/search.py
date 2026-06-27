@@ -4,9 +4,12 @@ from discord.ext import commands
 from discord import app_commands
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 except ImportError:
-    DDGS = None
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        DDGS = None
 
 SEARCH_COOLDOWN_SECONDS = 60
 
@@ -16,7 +19,7 @@ class Search(commands.Cog):
         self.bot = bot
 
     async def _try_ddgs(self, query: str):
-        """Primary search via duckduckgo_search. Returns a list of result dicts or None on failure."""
+        """Primary search via the ddgs package. Returns a list of result dicts or None on failure."""
         if DDGS is None:
             return None
         try:
@@ -30,8 +33,10 @@ class Search(commands.Cog):
 
     async def _try_wikipedia(self, query: str):
         """Fallback search via Wikipedia's public REST API (no key, rarely blocked)."""
+        headers = {"User-Agent": "MahoragaDiscordBot/1.0 (contact: server-owner; +https://discord.com)"}
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=8)
+            async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
                 params = {
                     "action": "opensearch",
                     "search": query,
@@ -39,19 +44,19 @@ class Search(commands.Cog):
                     "namespace": 0,
                     "format": "json",
                 }
-                async with session.get(
-                    "https://en.wikipedia.org/w/api.php", params=params, timeout=8
-                ) as resp:
-                    data = await resp.json()
+                async with session.get("https://en.wikipedia.org/w/api.php", params=params) as resp:
+                    # Wikipedia sometimes serves this as text/plain instead of
+                    # application/json, so skip aiohttp's strict content-type check.
+                    data = await resp.json(content_type=None)
                 if not data or not data[1]:
                     return None
                 title = data[1][0]
                 async with session.get(
-                    f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}", timeout=8
+                    f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
                 ) as resp:
                     if resp.status != 200:
                         return None
-                    return await resp.json()
+                    return await resp.json(content_type=None)
         except Exception as e:
             print(f"[question] Wikipedia fallback failed: {e}")
             return None
