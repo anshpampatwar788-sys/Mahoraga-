@@ -119,15 +119,15 @@ class Radio(commands.Cog):
         state = self.get_state(ctx.guild.id)
         voice_channel = ctx.author.voice.channel
 
-      if state.voice_client is None or not state.voice_client.is_connected():
-    try:
-        state.voice_client = await voice_channel.connect()
-    except Exception as e:
-        import traceback
-        print("VOICE CONNECT ERROR:")
-        traceback.print_exc()
-        await ctx.send(f"Voice connection failed: {type(e).__name__}: {e}")
-        return  
+        if state.voice_client is None or not state.voice_client.is_connected():
+            try:
+                state.voice_client = await voice_channel.connect()
+                print("[radio][diag] voice_channel.connect() succeeded")
+            except Exception as e:
+                print(f"[radio][diag] voice_channel.connect() FAILED: {e}")
+                traceback.print_exc()
+                await ctx.send(f"⚠️ Diagnostic: couldn't connect to voice — `{type(e).__name__}: {e}`")
+                return
 
         try:
             info = await self._extract(query)
