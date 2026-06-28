@@ -1,4 +1,6 @@
 import asyncio
+import glob
+import subprocess
 import traceback
 import discord
 from discord.ext import commands
@@ -29,6 +31,32 @@ AUTO_LEAVE_SECONDS = 30
 # on minimal/slim Linux containers even when libopus IS installed correctly.
 # Try loading it explicitly by its known filenames as a fallback.
 _OPUS_CANDIDATE_NAMES = ["libopus.so.0", "opus", "libopus.so", "libopus-0.dll", "libopus.0.dylib"]
+
+
+def _diagnose_opus_filesystem() -> str:
+    """Returns a short human-readable report of what's actually on disk/in the
+    dynamic linker cache for opus, so we stop guessing and see ground truth."""
+    lines = []
+
+    try:
+        result = subprocess.run(["ldconfig", "-p"], capture_output=True, text=True, timeout=5)
+        opus_lines = [l for l in result.stdout.splitlines() if "opus" in l.lower()]
+        if opus_lines:
+            lines.append("ldconfig knows about: " + " | ".join(opus_lines[:3]))
+        else:
+            lines.append("ldconfig -p has NO entry containing 'opus' at all.")
+    except Exception as e:
+        lines.append(f"ldconfig check failed to run: {e}")
+
+    found_files = []
+    for pattern in ["/usr/lib/**/libopus*", "/usr/lib*/libopus*", "/lib/**/libopus*", "/lib*/libopus*"]:
+        found_files.extend(glob.glob(pattern, recursive=True))
+    if found_files:
+        lines.append("Files found on disk: " + ", ".join(sorted(set(found_files))[:5]))
+    else:
+        lines.append("No libopus* files found on disk in common lib directories at all.")
+
+    return "\n".join(lines)
 
 
 def _ensure_opus_loaded():
@@ -131,10 +159,11 @@ class Radio(commands.Cog):
         opus_loaded = discord.opus.is_loaded() or _ensure_opus_loaded()
         print(f"[radio][diag] discord.opus.is_loaded() = {opus_loaded}")
         if not opus_loaded:
+            fs_report = _diagnose_opus_filesystem()
+            print(f"[radio][diag] filesystem report:\n{fs_report}")
             await ctx.send(
-                "⚠️ Diagnostic: the Opus audio codec isn't loaded on this server, even after "
-                "trying to load it explicitly by filename. `libopus` may not actually be installed, "
-                "or it's under a name this bot doesn't recognize yet."
+                "⚠️ Diagnostic: Opus still won't load. Filesystem check:\n"
+                f"```\n{fs_report[:1800]}\n```"
             )
             return
 
