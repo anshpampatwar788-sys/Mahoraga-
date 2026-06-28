@@ -25,6 +25,25 @@ FFMPEG_OPTS = {
 
 AUTO_LEAVE_SECONDS = 30
 
+# discord.py's automatic opus detection (ctypes.util.find_library) can fail
+# on minimal/slim Linux containers even when libopus IS installed correctly.
+# Try loading it explicitly by its known filenames as a fallback.
+_OPUS_CANDIDATE_NAMES = ["libopus.so.0", "opus", "libopus.so", "libopus-0.dll", "libopus.0.dylib"]
+
+
+def _ensure_opus_loaded():
+    if discord.opus.is_loaded():
+        return True
+    for name in _OPUS_CANDIDATE_NAMES:
+        try:
+            discord.opus.load_opus(name)
+            if discord.opus.is_loaded():
+                print(f"[radio][diag] Opus loaded explicitly via '{name}'")
+                return True
+        except OSError:
+            continue
+    return False
+
 
 class Track:
     def __init__(self, title, stream_url, requester, webpage_url=None):
@@ -46,6 +65,8 @@ class Radio(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.states = {}
+        loaded = _ensure_opus_loaded()
+        print(f"[radio][diag] opus loaded at cog startup: {loaded}")
 
     def get_state(self, guild_id: int) -> GuildMusicState:
         if guild_id not in self.states:
@@ -107,12 +128,13 @@ class Radio(commands.Cog):
             await ctx.defer()
 
         # --- DIAGNOSTIC: is the opus codec library loaded? ---
-        opus_loaded = discord.opus.is_loaded()
+        opus_loaded = discord.opus.is_loaded() or _ensure_opus_loaded()
         print(f"[radio][diag] discord.opus.is_loaded() = {opus_loaded}")
         if not opus_loaded:
             await ctx.send(
-                "⚠️ Diagnostic: the Opus audio codec isn't loaded on this server. "
-                "This is almost certainly why playback fails — `libopus` is missing from the host."
+                "⚠️ Diagnostic: the Opus audio codec isn't loaded on this server, even after "
+                "trying to load it explicitly by filename. `libopus` may not actually be installed, "
+                "or it's under a name this bot doesn't recognize yet."
             )
             return
 
