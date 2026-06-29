@@ -1,5 +1,8 @@
 import os
+import sys
 import asyncio
+import importlib.util
+import subprocess
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -12,6 +15,42 @@ intents.message_content = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+
+
+def print_startup_diagnostics():
+    print("===== STARTUP DIAGNOSTICS =====")
+    print(f"[diag] Python: {sys.version}")
+    print(f"[diag] discord.__version__ = {discord.__version__}")
+
+    spec = importlib.util.find_spec("davey")
+    print(f"[diag] importlib.util.find_spec('davey') = {spec}")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "show", "davey"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            print(f"[diag] pip show davey:\n{result.stdout}")
+        else:
+            print(f"[diag] pip show davey FAILED (not installed?): {result.stderr.strip()}")
+    except Exception as e:
+        print(f"[diag] pip show davey raised an exception: {e}")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "list"],
+            capture_output=True, text=True, timeout=10,
+        )
+        relevant = [l for l in result.stdout.splitlines() if any(
+            k in l.lower() for k in ["discord", "davey", "nacl", "opus", "yt-dlp"]
+        )]
+        print("[diag] relevant installed packages:\n" + "\n".join(relevant))
+    except Exception as e:
+        print(f"[diag] pip list raised an exception: {e}")
+
+    print(f"[diag] discord.opus.is_loaded() = {discord.opus.is_loaded()}")
+    print("===== END DIAGNOSTICS =====")
 
 
 @bot.event
@@ -59,6 +98,7 @@ async def load_cogs():
 
 
 async def main():
+    print_startup_diagnostics()
     if not TOKEN:
         raise RuntimeError("DISCORD_TOKEN not found. Copy .env.example to .env and add your bot token.")
     async with bot:
