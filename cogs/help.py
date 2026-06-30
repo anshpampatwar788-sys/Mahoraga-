@@ -28,6 +28,11 @@ class Help(commands.Cog):
         )
         embed.add_field(name="💰 Economy", value="`balance` `daily` `leaderboard` `pay`", inline=False)
         embed.add_field(
+            name="🛍️ Reward Shop",
+            value="`/reward shop` `/reward redeem` `/reward history` *(Staff: additem, edititem, removeitem, stock, toggle, claimed, setlogchannel)*",
+            inline=False,
+        )
+        embed.add_field(
             name="🎲 Gambling & Games",
             value=(
                 "`mines` `slots` `rps` `duel` *(1hr cooldown each)*\n"
