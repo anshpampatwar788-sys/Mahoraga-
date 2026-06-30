@@ -5,6 +5,7 @@ BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 DATA_PATH = os.path.join(BASE_DIR, "economy.json")
 BIRTHDAY_PATH = os.path.join(BASE_DIR, "birthdays.json")
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+REWARDS_PATH = os.path.join(BASE_DIR, "rewards.json")
 
 
 def _load(path: str) -> dict:
@@ -95,3 +96,147 @@ def set_config(key: str, value):
     data = _load(CONFIG_PATH)
     data[key] = value
     _save(CONFIG_PATH, data)
+
+
+# --- Reward Shop ---
+# rewards.json shape:
+# {
+#   "items": {"1": {"id": 1, "name": ..., "description": ..., "cost": ...,
+#                    "stock": int|null, "enabled": bool, "category": str}, ...},
+#   "next_item_id": int,
+#   "redemptions": {"<user_id>": [{"redemption_id": "RW-0001", "item_id": 1,
+#                                   "item_name": ..., "cost": ..., "timestamp": iso,
+#                                   "claimed": bool}, ...]},
+#   "next_redemption_number": int
+# }
+
+def _load_rewards() -> dict:
+    data = _load(REWARDS_PATH)
+    data.setdefault("items", {})
+    data.setdefault("next_item_id", 1)
+    data.setdefault("redemptions", {})
+    data.setdefault("next_redemption_number", 1)
+    return data
+
+
+def _save_rewards(data: dict):
+    _save(REWARDS_PATH, data)
+
+
+def add_reward_item(name: str, description: str, cost: int, stock=None, category: str = "General") -> dict:
+    data = _load_rewards()
+    item_id = data["next_item_id"]
+    item = {
+        "id": item_id,
+        "name": name,
+        "description": description,
+        "cost": cost,
+        "stock": stock,  # None = unlimited
+        "enabled": True,
+        "category": category,
+    }
+    data["items"][str(item_id)] = item
+    data["next_item_id"] = item_id + 1
+    _save_rewards(data)
+    return item
+
+
+def edit_reward_item(item_id: int, **fields) -> dict:
+    """Update any subset of name/description/cost/stock/category on an existing item."""
+    data = _load_rewards()
+    item = data["items"].get(str(item_id))
+    if not item:
+        return None
+    for key, value in fields.items():
+        if value is not None and key in ("name", "description", "cost", "stock", "category"):
+            item[key] = value
+    _save_rewards(data)
+    return item
+
+
+def remove_reward_item(item_id: int) -> bool:
+    data = _load_rewards()
+    if str(item_id) in data["items"]:
+        del data["items"][str(item_id)]
+        _save_rewards(data)
+        return True
+    return False
+
+
+def set_reward_stock(item_id: int, stock) -> dict:
+    """stock can be an int, or None for unlimited."""
+    return edit_reward_item(item_id, stock=stock)
+
+
+def toggle_reward_item(item_id: int) -> dict:
+    data = _load_rewards()
+    item = data["items"].get(str(item_id))
+    if not item:
+        return None
+    item["enabled"] = not item["enabled"]
+    _save_rewards(data)
+    return item
+
+
+def get_reward_item(item_id: int) -> dict:
+    data = _load_rewards()
+    return data["items"].get(str(item_id))
+
+
+def get_all_reward_items(enabled_only: bool = False) -> list:
+    data = _load_rewards()
+    items = list(data["items"].values())
+    if enabled_only:
+        items = [i for i in items if i.get("enabled", True)]
+    items.sort(key=lambda i: (i.get("category", ""), i["cost"]))
+    return items
+
+
+def decrement_reward_stock(item_id: int) -> bool:
+    """Decrements stock by 1 if limited. Returns False if out of stock, True otherwise
+    (including unlimited-stock items, which always return True)."""
+    data = _load_rewards()
+    item = data["items"].get(str(item_id))
+    if not item:
+        return False
+    if item.get("stock") is None:
+        return True
+    if item["stock"] <= 0:
+        return False
+    item["stock"] -= 1
+    _save_rewards(data)
+    return True
+
+
+def create_redemption(user_id: int, item: dict) -> dict:
+    data = _load_rewards()
+    number = data["next_redemption_number"]
+    redemption_id = f"RW-{number:04d}"
+    import datetime
+    record = {
+        "redemption_id": redemption_id,
+        "item_id": item["id"],
+        "item_name": item["name"],
+        "cost": item["cost"],
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "claimed": False,
+    }
+    data["redemptions"].setdefault(str(user_id), []).append(record)
+    data["next_redemption_number"] = number + 1
+    _save_rewards(data)
+    return record
+
+
+def get_user_redemptions(user_id: int) -> list:
+    data = _load_rewards()
+    return data["redemptions"].get(str(user_id), [])
+
+
+def mark_redemption_claimed(user_id: int, redemption_id: str) -> bool:
+    data = _load_rewards()
+    for record in data["redemptions"].get(str(user_id), []):
+        if record["redemption_id"] == redemption_id:
+            record["claimed"] = True
+            _save_rewards(data)
+            return True
+    return False
