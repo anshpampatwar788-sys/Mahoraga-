@@ -1,7 +1,15 @@
 import json
 import os
 
-BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+# Use Railway's persistent volume if it exists, otherwise fall back to the
+# local data/ folder so the bot works the same in both environments.
+_RAILWAY_VOLUME = "/app/data"
+_LOCAL_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+BASE_DIR = _RAILWAY_VOLUME if os.path.exists(_RAILWAY_VOLUME) else _LOCAL_DATA
+
+# Make sure the directory always exists (matters for first local run).
+os.makedirs(BASE_DIR, exist_ok=True)
+
 DATA_PATH = os.path.join(BASE_DIR, "economy.json")
 BIRTHDAY_PATH = os.path.join(BASE_DIR, "birthdays.json")
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
